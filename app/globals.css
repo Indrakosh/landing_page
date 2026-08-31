@@ -1,0 +1,2838 @@
+/* ============================================================================
+   INDRAKOSH — one continuous descent
+   Dark, cinematic, no visible sections. A single fixed image stack runs behind
+   the whole page; everything else floats over it.
+   ========================================================================= */
+
+
+/* ------------------------------------------------------------ 0. BRAND TYPE
+   Guidelines p.32–34. local() first so a designer with the licensed desktop
+   fonts sees the real thing immediately; then the self-hosted woff2; then a
+   metrically compatible fallback. Neue Haas Grotesk *is* Helvetica, so
+   Helvetica Neue → Helvetica → Arimo → Arial degrades without reflow.
+   The two Neue Haas files and Cocogoose are not licensed for web yet, so those
+   three URLs 404 by design — see public/fonts/README.md. */
+
+@font-face {
+  font-family: "IK Display";
+  src:
+    local("Neue Haas Grotesk Display Pro 65 Medium"),
+    local("NHaasGroteskDSPro-65Md"),
+    local("HaasGrot Disp 65 Md Trial"),
+    url("/fonts/NHaasGroteskDSPro-65Md.woff2") format("woff2");
+  font-weight: 500 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IK Text";
+  src:
+    local("Neue Haas Grotesk Display Pro 45 Light"),
+    local("NHaasGroteskDSPro-45Lt"),
+    local("HaasGrot Disp 45 Lt Trial"),
+    url("/fonts/NHaasGroteskDSPro-45Lt.woff2") format("woff2");
+  font-weight: 300 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IK Accent";
+  /* No bare local("Cocogoose"): the trial family installed on a designer
+     machine matches that name and ships broken digit glyphs — "01" renders as
+     CJK. Only the exact DemiBold name is safe. */
+  src:
+    local("Cocogoose Pro DemiBold"),
+    url("/fonts/Cocogoose-DemiBold.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+2000-206F, U+2212;
+  font-weight: 600;
+  font-display: swap;
+}
+/* p.33: "Used exclusively for the wordmark." Never set copy in it. */
+@font-face {
+  font-family: "IK Wordmark";
+  src:
+    local("Medusa Gothic D"),
+    local("Medusa Gothic"),
+    url("/fonts/MedusaGothic.woff2") format("woff2");
+  font-weight: 400;
+  font-display: block;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /* The four brand colours, verbatim from p.28–29, plus a value ramp OF those
+     four. No new hues — the guidelines forbid "unrelated bright colours", not
+     a tint/shade ramp of the brand's own.
+
+     Measured against the night ground, which decides what may carry text:
+       soapstone  15.55:1  AAA — body and headlines
+       brass-2     9.87:1  AAA — the accent that can be read
+       cream-dim   9.35:1  AAA — secondary copy
+       cream-faint 4.81:1  AA  — labels
+       terracotta  3.77:1  large text only, never body
+       seal brown  2.46:1  FAIL on dark — it is a cream-ground colour, so it
+                           appears here only on light surfaces, never as text */
+  --void: #1a0a04;        /* shade of DARK TERRACOTTA — the ground */
+  --void-2: #2a1109;
+  --cream: #eee6d7;       /* SOAPSTONE — verbatim */
+  --cream-dim: #bfb3a2;
+  --cream-faint: #8a7d6f;
+
+  --terra: #af541f;       /* BURNT TERRACOTTA — verbatim. Display sizes and
+                             non-text marks only on this ground. */
+  --terra-deep: #561300;  /* DARK TERRACOTTA — verbatim */
+  --seal: #93301f;        /* SEAL BROWN — verbatim. Light surfaces only. */
+
+  /* Brass is a finish, not a hue. p.27 forbids "metallic effects as large
+     digital backgrounds", so it exists only as small marks, hairlines and
+     accent text — never as a field. */
+  --brass-1: #8a6a3a;
+  --brass-2: #d9b478;
+  --brass-3: #f4e6c8;
+
+  --hair: rgba(238, 230, 215, 0.14);
+  --hair-soft: rgba(238, 230, 215, 0.07);
+
+  --f-wordmark: "IK Wordmark", var(--f-fallback), Georgia, serif;
+  --f-display: "IK Display", "Helvetica Neue", Helvetica, var(--f-fallback), Arial, sans-serif;
+  --f-body: "IK Text", "Helvetica Neue", Helvetica, var(--f-fallback), Arial, sans-serif;
+  --f-accent: "IK Accent", "Helvetica Neue", Helvetica, var(--f-fallback), Arial, sans-serif;
+
+  --gut: clamp(1.25rem, 5vw, 6rem);
+  --stack: clamp(7rem, 18vh, 15rem);
+
+  /* Spring curves — real damped-spring step responses sampled into linear().
+     ζ 0.82 settles with ~1% overshoot; ζ 0.68 has visible bounce. */
+  --settle: linear(
+    0, 0.0191, 0.0681, 0.1366, 0.2166, 0.3019, 0.3879, 0.4712, 0.5497, 0.6219,
+    0.687, 0.7446, 0.7949, 0.8382, 0.8748, 0.9055, 0.9307, 0.9512, 0.9676,
+    0.9804, 0.9902, 0.9976, 1.0029, 1.0066, 1.009, 1.0104, 1.011, 1.0111,
+    1.0107, 1.01, 1.0092, 1.0083, 1.0073, 1.0064, 1.0055, 1.0046, 1.0039,
+    1.0032, 1.0026, 1.0021, 1
+  );
+  --snap: linear(
+    0, 0.0235, 0.0844, 0.17, 0.2698, 0.3756, 0.481, 0.5815, 0.6738, 0.7561,
+    0.8273, 0.8871, 0.9361, 0.9748, 1.0043, 1.0257, 1.0403, 1.0491, 1.0534,
+    1.0542, 1.0523, 1.0486, 1.0437, 1.0382, 1.0324, 1.0268, 1.0214, 1.0165,
+    1.0122, 1.0085, 1.0054, 1.0029, 1.0009, 0.9994, 0.9984, 0.9977, 0.9973,
+    0.9971, 0.9972, 0.9977, 1
+  );
+  --out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* The reference site's own curve, read straight off its stylesheet, where it
+     is declared once as --default-ease and then used on very nearly everything:
+     cubic-bezier(.83, 0, .17, 1). It is easeInOutQuint — a long, quiet start,
+     a fast middle, a long quiet finish. That symmetry is most of why that site
+     reads as expensive: nothing on it ever *starts*, it is simply already
+     underway by the time you notice, and it stops without arriving. */
+  --ease: cubic-bezier(0.83, 0, 0.17, 1);
+  /* One response beat. The reference staggers on .3s and it is worth being
+     consistent about: motion that answers instantly reads as a state change,
+     motion that answers a beat later reads as a decision. */
+  --lag: 300ms;
+
+  color-scheme: dark;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  /* `clip` rather than `hidden`: hidden turns the root into a scroll container,
+     which silently kills position:sticky everywhere below it. Clipping has to
+     be declared on <html> too — a clipped subtree still contributes to
+     documentElement.scrollWidth when only <body> clips, which is how the
+     marquee and rail were adding 60px of phantom horizontal scroll. */
+  overflow-x: clip;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--void);
+  color: var(--cream);
+  font-family: var(--f-body);
+  font-weight: 300;
+  font-size: clamp(0.98rem, 1.05vw, 1.1rem);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--f-display);
+  /* p.34: the whole spec'd hierarchy is Medium. */
+  font-weight: 500;
+  margin: 0;
+  line-height: 0.94;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+::selection {
+  background: var(--terra);
+  color: var(--void);
+}
+:focus-visible {
+  outline: 2px solid var(--brass-2);
+  outline-offset: 4px;
+}
+
+.mono {
+  font-family: var(--f-accent);
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------ 1. BACKDROP
+   The whole reason the page has no seams. Fixed, full-viewport, cross-fading. */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--void);
+  /* Required: the grain and the plates are both inset past the edges so they
+     have room to move, and without clipping here they grow the document's
+     scrollWidth and give the whole page a horizontal scrollbar. `overflow-x:
+     hidden` on body does not reliably stop that. */
+  overflow: hidden;
+}
+.backdrop .plate {
+  position: absolute;
+  /* Overscan is not optional. Each plate drifts up to ±6% of its height, and
+     at `inset: 0` that slides the image off the viewport edge and exposes the
+     ground behind it as a hard horizontal band — a seam, in the one design
+     whose entire premise is that there are no seams. */
+  inset: -10%;
+  opacity: 0;
+  will-change: opacity, transform;
+}
+.backdrop .plate:first-child {
+  opacity: 1;
+}
+.backdrop .plate img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Photographs from a dozen sources will not agree on white balance or
+     exposure. Grading them all through the same filter is what makes a
+     borrowed image library read as one art direction. */
+  filter: saturate(0.72) contrast(1.06) brightness(0.62) sepia(0.16);
+}
+
+/* Vignette + floor. The floor is heavier than the top because the type sits
+   low on most screens here. */
+.backdrop-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(12, 7, 5, 0.72), rgba(12, 7, 5, 0.55) 40%, rgba(12, 7, 5, 0.88)),
+    radial-gradient(120% 90% at 50% 45%, transparent 30%, rgba(12, 7, 5, 0.78) 100%);
+}
+
+/* Film grain — the single most expensive thing on the page, and the comment
+   above it used to claim it was cheap.
+   
+   A/B measured in Chrome: with the grain animating, the opening ran 225 frames
+   in 7.5s and 36% of them were late. With it off: 380 frames, 4% late. It alone
+   was costing roughly 40% of the frame budget.
+   
+   Why: `inset: -50%` makes the layer FOUR TIMES the viewport area, it carries
+   `mix-blend-mode: overlay`, and it changed three times a second. A blended
+   layer forces everything beneath it to be re-composited into a buffer on every
+   change, so this was re-blending four viewports of pixels, three times a
+   second, for the entire life of the page.
+   
+   Fixes, in order of how much they bought: overscan cut from -50% to -6% (the
+   jitter only travels 1.5%, so the rest was pure waste), promoted to its own
+   compositor layer so the transform is not a paint, and the jitter slowed. */
+.backdrop-grain {
+  position: absolute;
+  inset: -6%;
+  opacity: 0.2;
+  mix-blend-mode: overlay;
+  will-change: transform;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@media (prefers-reduced-motion: no-preference) {
+  .backdrop-grain {
+    animation: grain 1200ms steps(2) infinite;
+  }
+}
+@keyframes grain {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-1.5%, 1%, 0);
+  }
+  100% {
+    transform: translate3d(1%, -1.5%, 0);
+  }
+}
+
+/* The opening is the one moment the page cannot afford it: three blinds are
+   clipping, the mark is assembling and the plate is settling, all at once.
+   The grain holds still until the page has arrived. */
+:root:not([data-ready]) .backdrop-grain {
+  animation: none;
+}
+
+main,
+.top,
+.foot {
+  position: relative;
+  z-index: 1;
+}
+
+/* The backdrop no longer scales — the three windows in the loader do the
+   reveal, and what they open onto is this, already at full size and in
+   register. `data-entered` simply hands the ground over. */
+
+/* Nothing starts until the image has landed whole, otherwise the hero's
+   kinetic type fires behind the curtain and is over before anyone sees it.
+   `data-ready` is set one beat after `data-entered` for exactly that gap. */
+main {
+  opacity: 0;
+  transition: opacity 800ms var(--out);
+}
+:root[data-ready] main {
+  opacity: 1;
+}
+
+/* -------------------------------------------------------------- 2. LOADER */
+
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+/* No parting panels, and no ground of its own: the three blinds ARE the black.
+   If the loader painted a background too, the holes would open onto it instead
+   of onto the page. */
+.loader-stage {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: clamp(1.1rem, 2.6vh, 1.75rem);
+}
+
+/* ---- beat 1 · the arcs ---------------------------------------------------
+   Two strokes 180° apart on one circle. The group spins at a constant rate
+   while each stroke's dash length breathes open and shut, which is what makes
+   an indeterminate loader read as alive rather than as a rotating gif. */
+
+.spinner {
+  position: absolute;
+  z-index: 2;
+  width: clamp(3rem, 6vw, 4.25rem);
+  aspect-ratio: 1;
+  color: var(--brass-2);
+  transition: opacity 340ms var(--out), transform 520ms var(--settle);
+}
+.spinner-spin {
+  transform-origin: 50% 50%;
+  animation: spin 1.5s linear infinite;
+}
+.spinner-arc {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  /* r=28 → circumference ≈ 175.9 */
+  animation: breathe-dash 1.5s ease-in-out infinite;
+}
+.spinner-arc-b {
+  /* Half a turn round, so the two arcs always sit opposite each other. */
+  transform: rotate(180deg);
+  transform-origin: 50% 50%;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes breathe-dash {
+  0% {
+    stroke-dasharray: 6 170;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 62 114;
+    stroke-dashoffset: -22;
+  }
+  100% {
+    stroke-dasharray: 6 170;
+    stroke-dashoffset: -132;
+  }
+}
+/* The arcs release outward as the symbol takes their place. */
+.loader:not([data-beat="spin"]) .spinner {
+  opacity: 0;
+  transform: scale(1.5);
+}
+
+/* ---- beat 2 · the symbol ------------------------------------------------ */
+
+.loader-mark {
+  width: clamp(2.9rem, 6vw, 4.1rem);
+  height: auto;
+  color: var(--brass-2);
+  opacity: 0;
+  transition: opacity 420ms var(--out);
+}
+.loader:not([data-beat="spin"]) .loader-mark {
+  opacity: 1;
+}
+
+/* The symbol builds instead of fading: rays scale out of the burst centre,
+   petals rise off the plinth, the sparkle snaps in last. */
+[data-mark] [data-ray],
+[data-mark] [data-bead] {
+  transform-box: view-box;
+  transform-origin: 100px 92px;
+}
+[data-mark] [data-petal],
+[data-mark] [data-plinth] {
+  transform-box: view-box;
+  transform-origin: 100px 197px;
+}
+[data-mark] [data-sparkle] {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+[data-mark][data-state="off"] [data-ray],
+[data-mark][data-state="off"] [data-bead] {
+  transform: scale(0.05);
+  opacity: 0;
+}
+[data-mark][data-state="off"] [data-petal] {
+  transform: scaleY(0.02);
+}
+[data-mark][data-state="off"] [data-plinth] {
+  transform: scaleX(0);
+}
+[data-mark][data-state="off"] [data-sparkle] {
+  transform: scale(0);
+  opacity: 0;
+}
+[data-mark][data-state="on"] [data-ray],
+[data-mark][data-state="on"] [data-bead] {
+  transform: scale(1);
+  opacity: 1;
+  transition: transform 760ms var(--settle), opacity 300ms linear;
+  /* Staggered outward from the crown at the top of the arc, not left to right. */
+  transition-delay: calc(abs(var(--i) - 13) * 22ms);
+}
+[data-mark][data-state="on"] [data-petal] {
+  transform: scaleY(1);
+  transition: transform 640ms var(--settle) 200ms;
+}
+[data-mark][data-state="on"] [data-petal="r"] {
+  transition-delay: 265ms;
+}
+[data-mark][data-state="on"] [data-plinth] {
+  transform: scaleX(1);
+  transition: transform 520ms var(--out) 140ms;
+}
+[data-mark][data-state="on"] [data-sparkle] {
+  transform: scale(1);
+  opacity: 1;
+  transition: transform 520ms var(--snap) 560ms, opacity 200ms linear 560ms;
+}
+
+/* ---- beats 3–4 · the typed wordmark and the divider --------------------- */
+
+.loader-lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-height: 1.6em;
+}
+.loader-word {
+  font-family: var(--f-wordmark);
+  font-size: clamp(1.05rem, 2.4vw, 1.7rem);
+  letter-spacing: 0.34em;
+  /* The tracking is on the right of each glyph, so without this the caret sits
+     one space too far out and the lockup looks mis-kerned. */
+  margin-right: -0.34em;
+  color: var(--cream);
+  white-space: pre;
+}
+/* Beat 3 it is a caret and blinks; beat 4 it stops blinking and becomes the
+   divider bar of the real lockup. Same element, two jobs — which is the trick
+   the reference uses and the reason its lockup lands feeling inevitable. */
+.loader-caret {
+  width: 1px;
+  height: 1.35em;
+  background: var(--brass-2);
+  opacity: 0;
+  transition: opacity 200ms linear;
+}
+.loader[data-beat="type"] .loader-caret {
+  opacity: 1;
+  animation: caret 900ms steps(2) infinite;
+}
+.loader[data-beat="tag"] .loader-caret,
+.loader[data-beat="open"] .loader-caret {
+  opacity: 1;
+}
+@keyframes caret {
+  50% {
+    opacity: 0.15;
+  }
+}
+.loader-tag {
+  font-family: var(--f-accent);
+  font-size: clamp(0.52rem, 1vw, 0.64rem);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--brass-2);
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  transition: max-width 700ms var(--out), opacity 500ms var(--out) 120ms;
+}
+.loader[data-beat="tag"] .loader-tag,
+.loader[data-beat="open"] .loader-tag {
+  max-width: 22rem;
+  opacity: 0.9;
+}
+
+/* ---- beat 5 · the lockup fades, then three windows open -----------------
+   The measured move, and the one I first got wrong by reading it as a single
+   image scaling up. Each panel is a WINDOW: the image inside is
+   `position: fixed`, so it never moves and all three stay in register —
+   the seams disappear the instant the windows meet. Growing the window rather
+   than the picture is why the reference reads as architecture opening rather
+   than a photo zooming. */
+
+.loader[data-beat="fade"] .loader-stage,
+.loader[data-beat="open"] .loader-stage {
+  opacity: 0;
+  transform: translate3d(0, -6px, 0);
+  transition: opacity 400ms var(--out), transform 600ms var(--settle);
+}
+
+/* The reveal used to paint its OWN copy of the hero and then hand over to the
+   real backdrop when the loader unmounted. Measured at the handover: the
+   loader's copy rendered at 1280×720 at (0,0), the backdrop's plate at
+   1566.7×881.3 at (−143.4, −80.6) — the plate carries `inset: -10%` overscan
+   and a resting `scale(1.02)`. A 22% jump, in one frame. That is the "lag"; it
+   was never a frame-rate problem, it was a cut.
+
+   So there is no second image any more. The windows are holes punched in black
+   blinds sitting directly on top of the real backdrop — what opens is the page
+   itself. Two things fall out of that for free:
+     · nothing can drift out of register, because there is only one image;
+     · the element being animated is a flat colour rather than a 1.5MP photo,
+       and clip-path is NOT compositor-accelerated, so animating it over an
+       image meant a full repaint of that image every frame. */
+
+@property --oh {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 50%;
+}
+@property --ot {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 50%;
+}
+@property --ob {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 50%;
+}
+
+.opening {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  pointer-events: none;
+}
+.op-blind {
+  background: var(--void);
+  /* Three 1fr columns of a 1280px viewport are 426.67px each, and the
+     fractional edges leave sub-pixel seams that show the backdrop through as
+     hairlines while the blinds are still shut. Half a pixel of overlap on each
+     side closes them; the blinds are all the same black, so the overlap is
+     invisible and the hole edges move by an imperceptible amount. */
+  margin-inline: -0.5px;
+  /* A rectangle with a rectangular hole. CSS polygon() is a SINGLE path, so
+     listing the outer corners and then the inner ones draws a connector edge
+     between the two — which renders as a diagonal slash across the blind, not
+     a hole. The fix is to travel in along the bottom edge, around the hole, and
+     back out along the same line: the connector is traversed twice and cancels.
+
+     Both insets at 50% collapse the hole to a zero-area line, so the blind is
+     solid; both at 0% collapse the frame instead, so it disappears. */
+  clip-path: polygon(
+    0% 0%,
+    0% 100%,
+    var(--oh) 100%,
+    var(--oh) var(--ot),
+    calc(100% - var(--oh)) var(--ot),
+    calc(100% - var(--oh)) calc(100% - var(--ob)),
+    var(--oh) calc(100% - var(--ob)),
+    var(--oh) 100%,
+    100% 100%,
+    100% 0%
+  );
+  /* Not --out. Expo-out is front-loaded, so the windows sprang open inside
+     200ms and the staggered middle — the part that makes this read as three
+     separate openings — was gone before you could see it. */
+  /* An animation rather than a transition, because the shape has to pass
+     through an intermediate state a transition cannot express.
+
+     Stepped at 15fps, the reference's windows do not expand symmetrically from
+     their centre: a small box appears low in the frame and its TOP edge climbs
+     while the bottom stays put. That is why it reads as pieces rising rather
+     than apertures dilating. Hence separate top and bottom insets, and a
+     keyframe at 14% that lands the small bottom box before the climb. */
+  animation-name: blind-open;
+  animation-duration: calc(1250ms + var(--i) * 90ms);
+  animation-delay: calc(var(--i) * 140ms);
+  animation-fill-mode: both;
+}
+@keyframes blind-open {
+  0% {
+    --oh: 50%;
+    --ot: 50%;
+    --ob: 50%;
+    animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1);
+  }
+  14% {
+    /* the small box, sitting low */
+    --oh: 39%;
+    --ot: 78%;
+    --ob: 8%;
+    animation-timing-function: cubic-bezier(0.62, 0, 0.24, 1);
+  }
+  100% {
+    --oh: 0%;
+    --ot: 0%;
+    --ob: 0%;
+  }
+}
+/* Held shut until the beat, otherwise it plays behind the lockup. */
+.loader:not([data-beat="open"]) .op-blind {
+  animation-play-state: paused;
+}
+
+/* -------------------------------------------------------------- 3. CURSOR */
+
+.cur-dot,
+.cur-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  pointer-events: none;
+  border-radius: 50%;
+  display: none;
+}
+.has-cursor .cur-dot,
+.has-cursor .cur-ring {
+  display: block;
+}
+.cur-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--brass-3);
+}
+.cur-ring {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(237, 228, 214, 0.45);
+  transition: background-color 300ms var(--out), border-color 300ms var(--out);
+}
+.cur-ring[data-hot="1"] {
+  background: rgba(217, 180, 120, 0.12);
+  border-color: var(--brass-2);
+}
+/* Only hide the native cursor once ours is proven to be running. */
+.has-cursor,
+.has-cursor a,
+.has-cursor button,
+.has-cursor .rail {
+  cursor: none;
+}
+
+/* ------------------------------------------------------------ 4. CHROME */
+
+.top {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: clamp(1rem, 2.4vw, 1.75rem) var(--gut);
+  /* No mix-blend-mode here. `difference` looked clever on the dark plates and
+     then made the whole header disappear over the mid-brown end-grain plate —
+     cream differenced against a mid tone lands back on a mid tone. A scrim is
+     boring and works at every value behind it. */
+  opacity: 0;
+  transform: translate3d(0, -12px, 0);
+  transition: opacity 900ms var(--out) 400ms, transform 900ms var(--settle) 400ms;
+}
+:root[data-ready] .top {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* …and rides up to the top over the first half-viewport of scroll, where it
+   stays. Scroll-linked and transform-only, so it is compositor work and never
+   touches layout. Without a scroll timeline it simply sits at the top, which is
+   the state that matters for actually using the site. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: scroll()) {
+    .top {
+      animation-name: nav-rise;
+      animation-duration: auto;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 55svh;
+    }
+    /* The scrim used to ramp up across the whole rise, so the nav appeared to
+       fade in the entire way from the centre line to the top. Removed: the nav
+       holds one constant weight while it travels, and the scrim only arrives
+       in the last few percent, once it is home. Nothing about the nav should
+       be *becoming* anything while it moves — it should simply be moving. */
+    .top::before {
+      animation-name: nav-scrim;
+      animation-duration: auto;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: scroll(root block);
+      animation-range: 49svh 56svh;
+    }
+  }
+}
+@keyframes nav-rise {
+  from {
+    transform: translate3d(0, calc(50svh - 50%), 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes nav-scrim {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@supports not (animation-timeline: scroll()) {
+  .top {
+    transform: none;
+  }
+}
+/* The scrim that replaces the blend mode: a short gradient that only exists
+   behind the chrome, fading out well before it becomes a visible band. */
+.top::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    rgba(11, 4, 1, 0.92),
+    rgba(11, 4, 1, 0.62) 48%,
+    rgba(11, 4, 1, 0.24) 76%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* Over the cream wall the chrome would be cream on cream and would simply
+   vanish — which is exactly what happened the first time that section was
+   built. `data-light` is set by Strip.tsx for as long as a light band is
+   actually under the header, and nothing else on the page sets it. */
+:root[data-light] .top,
+:root[data-light] .top-mark,
+:root[data-light] .top-cta span {
+  color: var(--void);
+}
+:root[data-light] .top-cta {
+  border-color: rgba(26, 10, 4, 0.28);
+  /* The pill carries its own dark ground everywhere else, so that content
+     scrolling under it cannot collide with the type inside it. Over the cream
+     wall that same ground reads as a black lozenge stuck on the page, so it
+     inverts with the rest of the chrome. */
+  background: rgba(238, 230, 215, 0.62);
+}
+:root[data-light] /* The quieter of the two actions. No pill: an underline that wipes in from the
+   left on hover, so it reads as a link that happens to sit beside a button
+   rather than as a second button competing with the first. Planning a visit is
+   what this business wants from the page; browsing is the lower-commitment
+   step and should look like it. */
+.top-alt {
+  position: relative;
+  font-family: var(--f-accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cream-dim);
+  padding: 0.6rem 0;
+  white-space: nowrap;
+  transition: color 400ms var(--ease);
+}
+.top-alt::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.35rem;
+  height: 1px;
+  background: var(--brass-2);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 480ms var(--ease);
+}
+.top-alt:hover {
+  color: var(--cream);
+}
+.top-alt:hover::after {
+  transform: scaleX(1);
+}
+/* Below this there is no room for both beside the wordmark. */
+@media (max-width: 620px) {
+  .top-alt {
+    display: none;
+  }
+}
+/* Over the cream sections the chrome inverts, and this goes with it. */
+:root[data-light] .top-alt {
+  color: rgba(26, 10, 4, 0.68);
+}
+:root[data-light] .top-alt:hover {
+  color: var(--void);
+}
+:root[data-light] .top-alt::after {
+  background: var(--seal);
+}
+
+.top-cta:hover {
+  background: rgba(26, 10, 4, 0.08);
+}
+:root[data-light] .top-symbol {
+  color: var(--seal);
+}
+:root[data-light] .top::before {
+  opacity: 0 !important;
+}
+.top,
+.top-mark,
+.top-cta,
+.top-cta span,
+.top-symbol {
+  transition:
+    color 420ms var(--ease),
+    border-color 420ms var(--ease),
+    background 420ms var(--ease);
+}
+
+.top-lockup {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.top-symbol {
+  width: 1.35rem;
+  height: auto;
+  color: var(--brass-2);
+  flex: none;
+}
+.foot-symbol {
+  display: block;
+  width: clamp(2.2rem, 4vw, 3rem);
+  height: auto;
+  margin: 0 auto clamp(1.5rem, 4vh, 2.5rem);
+  color: var(--brass-2);
+  opacity: 0.75;
+}
+.top-mark {
+  /* One of exactly three places the wordmark face is permitted: header,
+     loader and footer. Never body copy. */
+  font-family: var(--f-wordmark);
+  /* Trimmed a step now that it shares the hero's centre line with the
+     headline — at 0.38em tracking it was running into the first word. */
+  font-size: clamp(0.85rem, 1.25vw, 1rem);
+  letter-spacing: 0.3em;
+}
+.top-place {
+  font-family: var(--f-accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cream-dim);
+  display: none;
+  /* Hidden while the nav is on the hero's centre line, because that is exactly
+     where the headline is. It arrives with the nav at the top, which is also
+     where the reference has nothing in the middle. */
+  opacity: 0;
+}
+@media (min-width: 760px) {
+  .top-place {
+    display: block;
+  }
+}
+/* Content scrolling under the fixed chrome was colliding with it — the
+   right-aligned manifesto ran straight through the "Plan a visit" pill. The
+   scrim alone was not enough because the pill is a bordered shape with type in
+   it, so anything behind it reads as interference rather than as depth. Giving
+   the pill its own ground settles it, and the blur keeps it from looking like
+   a solid button pasted on top. */
+/* Content scrolling under the fixed chrome was colliding with it — the
+   right-aligned manifesto ran straight through this pill. The header scrim
+   alone was not enough, because the pill is a bordered shape with type inside
+   it, so anything passing behind reads as interference rather than as depth.
+   Giving it its own ground settles that; the blur stops it looking like a
+   solid button pasted on. */
+.top-cta {
+  background: rgba(11, 4, 1, 0.55);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  font-family: var(--f-accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  padding: 0.6rem 1.1rem;
+  transition:
+    border-color 400ms var(--ease),
+    background-color 420ms var(--ease);
+}
+/* The quieter of the two actions. No pill: an underline that wipes in from the
+   left on hover, so it reads as a link that happens to sit beside a button
+   rather than as a second button competing with the first. Planning a visit is
+   what this business wants from the page; browsing is the lower-commitment
+   step and should look like it. */
+.top-alt {
+  position: relative;
+  font-family: var(--f-accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cream-dim);
+  padding: 0.6rem 0;
+  white-space: nowrap;
+  transition: color 400ms var(--ease);
+}
+.top-alt::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.35rem;
+  height: 1px;
+  background: var(--brass-2);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 480ms var(--ease);
+}
+.top-alt:hover {
+  color: var(--cream);
+}
+.top-alt:hover::after {
+  transform: scaleX(1);
+}
+/* Below this there is no room for both beside the wordmark. */
+@media (max-width: 620px) {
+  .top-alt {
+    display: none;
+  }
+}
+/* Over the cream sections the chrome inverts, and this goes with it. */
+:root[data-light] .top-alt {
+  color: rgba(26, 10, 4, 0.68);
+}
+:root[data-light] .top-alt:hover {
+  color: var(--void);
+}
+:root[data-light] .top-alt::after {
+  background: var(--seal);
+}
+
+.top-cta:hover {
+  border-color: var(--brass-2);
+  background: rgba(217, 180, 120, 0.1);
+}
+
+/* ---------------------------------------------------- 5. KINETIC TYPE
+   Each word rides in its own clipped box, so the line is revealed rather than
+   flown in. Default state is fully visible — the JS opts *into* hiding. */
+
+.kin {
+  /* Without a perspective the rotation below is an orthographic squash and
+     looks like a bug. 900px is shallow enough to read as a real tip. */
+  perspective: 900px;
+  perspective-origin: 50% 100%;
+}
+.kin-w {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.06em;
+  margin-bottom: -0.06em;
+}
+.kin-i {
+  display: inline-block;
+  /* Hinged at its own baseline, so it tips up rather than tumbling. */
+  transform-origin: 50% 100%;
+  will-change: transform;
+}
+/* The words used to rise straight up the Y axis and fade. That is a slide, and
+   a slide is flat — every word arrived on the same plane at the same angle, so
+   twelve of them read as one block wiping on.
+   Now each word is lying face-down below its own mask line and swings up onto
+   the page, out of a slight blur, on the reference's easeInOutQuint. The tip is
+   what carries the weight: you can see the word turn, so it has a front and a
+   back and it occupies space. */
+.kin[data-kin="wait"] .kin-i {
+  transform: translate3d(0, 108%, 0) rotateX(-62deg);
+  opacity: 0;
+  filter: blur(5px);
+}
+.kin[data-kin="in"] .kin-i {
+  transform: none;
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    transform 1150ms var(--ease),
+    opacity 700ms var(--ease),
+    filter 620ms var(--ease);
+}
+
+/* ------------------------------------------------------------- 6. UNMASK */
+
+.unmask {
+  overflow: hidden;
+  /* Faster than it was (1200ms), and on the reference curve. An image that
+     takes over a second to finish arriving is still arriving while you are
+     already reading past it. */
+  transition: clip-path 880ms var(--ease);
+}
+.unmask[data-mask="wait"] {
+  clip-path: inset(0 0 100% 0);
+}
+.unmask[data-mask="in"] {
+  clip-path: inset(0 0 0 0);
+}
+/* The picture settles out of a slight push-in for a good while after the wipe
+   itself has finished. The wipe tells you the image has arrived; the scale
+   keeps it alive for a moment afterwards so it does not simply stop dead. */
+.unmask img {
+  transform: scale(1.13);
+  transition: transform 1600ms var(--ease);
+}
+.unmask[data-mask="in"] img {
+  transform: scale(1);
+}
+
+/* ---------------------------------------------------------- 6b. SWEEP
+   Body copy that lights up word by word under the scroll.
+
+   Every word derives its own opacity from two numbers on the parent — the
+   block's progress and its own index — so a frame costs exactly one custom
+   property write on the container, not one style write per word. The window is
+   `--sp` words wide, which is what keeps it a gradient of light travelling
+   through the sentence rather than a row of words switching on.
+
+   The floor is 0.13 rather than 0: unread text should be present but unlit, the
+   way the reference's paragraphs are. Text that is genuinely invisible until
+   you reach it reads as a loading failure. */
+
+.sw {
+  --p: 0;
+}
+.sw-w {
+  display: inline-block;
+  opacity: clamp(
+    0.13,
+    calc((var(--p) * (var(--n) + var(--sp)) - var(--i)) / var(--sp)),
+    1
+  );
+}
+/* No transition here on purpose. `--p` is already damped in JS, so the value
+   arriving each frame is smooth; a transition on top of it would add a second
+   lag and turn the sweep to mush. */
+
+@supports not (opacity: clamp(0.1, calc(1 * 1), 1)) {
+  .sw-w {
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------- 7. HERO
+   Proportioned against the reference: one or two words per line over five
+   short lines, everything else at 10–11px. That scale contrast IS the effect —
+   a two-line headline with a paragraph under it is a different kind of site.
+
+   The headline is set in the TEXT weight of the brand face, not the display
+   weight. p.34 specifies Medium for H1, and Medium at this size reads heavy and
+   commercial; the reference's thin setting is most of why it feels like
+   architecture. Neue Haas Grotesk Display Pro 45 Light is still the brand's own
+   face, so this is a weight choice inside the system rather than outside it. */
+
+/* 155svh tall with its contents stuck to the top: the first 55svh of scroll
+   moves nothing but the nav, then the hero releases and scrolls away. The extra
+   height is exactly the range the nav animation runs over, so the two finish
+   together. */
+.hero {
+  position: relative;
+  height: 155svh;
+}
+.hero-stick {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  display: grid;
+  align-content: center;
+  padding: clamp(6rem, 14vh, 10rem) var(--gut) clamp(4rem, 10vh, 7rem);
+}
+.hero-over {
+  font-family: var(--f-accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--brass-2);
+  margin-bottom: clamp(1.25rem, 3vh, 2rem);
+}
+
+.hero-h {
+  font-family: var(--f-body);
+  font-weight: 300;
+  /* Measured against the reference: it fits six lines plus a scroll label in
+     720px, at roughly 11.5% of viewport height per line. 9.4vw put five lines
+     at 17% each, which pushed "unlocked" below the fold and took the index and
+     scroll label with it. */
+  font-size: clamp(2.3rem, 6.6vw, 6.2rem);
+  line-height: 1;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  /* Set in from the gutter above 760px only — see the media query below.
+     A vw-based indent looks considered at 1440 and simply eats a quarter of
+     the line on a 390px phone. */
+}
+/* Each line wipes in from its right edge leftward.
+   `inset(0 0 0 100%)` clips everything away; as the left inset falls to 0 the
+   visible region grows from the right edge back toward the start of the word.
+   Reading order runs the other way, so the word assembles backwards — which is
+   exactly what the reference does and why it reads as arriving rather than
+   switching on. ~40ms of stagger per line. */
+.hero-line-w {
+  display: block;
+  clip-path: inset(0 0 0 100%);
+  transition: clip-path 780ms var(--ease);
+  transition-delay: calc(var(--l) * 96ms);
+}
+:root[data-ready] .hero-line-w {
+  clip-path: inset(0 0 0 0);
+}
+
+/* The scroll label arrives just behind the last line. */
+.hero-scroll span {
+  opacity: 0;
+  transform: translate3d(0, 6px, 0);
+  transition:
+    opacity 460ms var(--out),
+    transform 620ms var(--settle);
+  transition-delay: 460ms;
+}
+:root[data-ready] .hero-scroll span {
+  opacity: 1;
+  transform: none;
+}
+/* The last line takes the one accent on this screen. Targets the line itself,
+   not a .kin-i inside it — the hero stopped using Kinetic when the reveal
+   became a CSS wipe, and this selector silently stopped matching. */
+.hero-h .hero-line-w:last-child {
+  color: var(--brass-2);
+}
+
+/* The four-layer index that sat here — STRUCTURAL / SURFACE / AMBIENCE /
+   LIVING, out to the right on the hero's centre line — is removed at the
+   client's request. The four layers keep their own section further down the
+   page, so nothing is lost; the hero simply stops saying it twice. */
+
+.hero-scroll {
+  position: absolute;
+  left: var(--gut);
+  bottom: clamp(1.75rem, 5vh, 3rem);
+  margin-left: clamp(0rem, 19vw, 19rem);
+  display: grid;
+  gap: 0.1rem;
+  font-family: var(--f-accent);
+  font-size: 0.6rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cream-faint);
+}
+.hero-scroll span:first-child {
+  color: var(--brass-2);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-scroll span:first-child {
+    animation: breathe 2.8s var(--out) infinite;
+  }
+}
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* --------------------------------------------------------------- 8. BEATS */
+
+/* --------------------------------------------------------------- 8. BEATS
+   Rebuilt against the reference, stepped side by side.
+
+   The gap was not motion, it was the deal between type and ground. The
+   reference gives its statement the ENTIRE SCREEN on clean black: five stacked
+   lines, hairline weight, enormous, tight leading, last line in accent.
+   Nothing else is on screen at all. Ours put medium-weight type at half that
+   size directly on a busy end-grain photograph — so the type never got to
+   dominate and the photograph never got to be looked at. Both lost.
+
+   Three changes, in order of how much they matter:
+
+     1. CLEAR THE GROUND. A hard scrim under this section only. The backdrop is
+        still there and still continuous, but for one screen it is a stage
+        rather than a subject.
+     2. SCALE AND WEIGHT. Roughly double the size at weight 300 instead of the
+        display weight. Huge-and-hairline is the entire look; big-and-normal is
+        just big. Uppercase with tight leading so the block reads as one shape.
+     3. LEADING. 0.92, so the four lines lock into a single mass the way the
+        reference's do.
+
+   The stair and the closing line breaking to the far side are kept from the
+   previous pass — that composition is ours and it is better than a plain
+   column. */
+
+.beats {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  display: grid;
+  align-content: center;
+  gap: 0.06em;
+  padding: var(--stack) var(--gut);
+}
+/* The stage. Strong in the middle where the type is, gone at both edges so
+   there is no seam and the descent still reads as continuous. */
+.beats::before {
+  content: "";
+  position: absolute;
+  inset: -10% 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(9, 3, 1, 0.86) 16%,
+    rgba(9, 3, 1, 0.93) 50%,
+    rgba(9, 3, 1, 0.86) 84%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+.beat {
+  font-family: var(--f-body);
+  font-weight: 300;
+  /* Sized to FIT. The first cut at 7.4vw measured 844px of block in an 810px
+     viewport — the closing line was simply off-screen at every desktop size,
+     which is a worse failure than being too small. Capitals at weight 300 with
+     0.94 leading already carry the reference's character; the extra 30px of
+     size was buying nothing that the setting was not already delivering. */
+  font-size: clamp(1.5rem, 5vw, 4.5rem);
+  line-height: 0.94;
+  /* Uppercase needs tracking OPENED, not closed — the -0.035em that suited the
+     lowercase display setting jams capitals into each other. */
+  letter-spacing: 0.004em;
+  text-transform: uppercase;
+  max-width: 19ch;
+  margin-left: calc(var(--b, 0) * 4vw);
+}
+.beat-last {
+  margin-top: 0.34em;
+  margin-left: 0;
+  color: var(--brass-2);
+  font-size: clamp(1.7rem, 6vw, 5.4rem);
+  max-width: none;
+}
+@media (min-width: 860px) {
+  .beat-last {
+    justify-self: end;
+    text-align: right;
+  }
+}
+
+/* ----------------------------------------------------------- 9. MANIFESTO */
+
+/* Set against the RIGHT edge, deliberately — the beats above it run off the
+   left, and two blocks of large type hard against the same margin read as one
+   long column that happens to have a gap in it. Answering the beats from the
+   other side is what makes the negative space between them do any work.
+   (The old rule said `text-align: center` under a comment explaining that
+   nothing here is centred. The comment was right.) */
+.mani {
+  position: relative;
+  isolation: isolate;
+  padding: var(--stack) var(--gut);
+  display: grid;
+  justify-items: start;
+}
+.mani::before {
+  content: "";
+  position: absolute;
+  inset: -18% 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(9, 3, 1, 0.82) 22%,
+    rgba(9, 3, 1, 0.9) 50%,
+    rgba(9, 3, 1, 0.82) 78%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+.mani-t {
+  font-family: var(--f-body);
+  font-weight: 300;
+  font-size: clamp(1.8rem, 6.4vw, 5.6rem);
+  line-height: 0.94;
+  letter-spacing: 0.004em;
+  text-transform: uppercase;
+  max-width: 14ch;
+}
+@media (min-width: 860px) {
+  .mani {
+    justify-items: end;
+  }
+  .mani-t {
+    text-align: right;
+  }
+}
+/* The one terracotta element on the page, legal here precisely because it is
+   display-size: 3.77:1 clears the 3:1 large-text bar and would fail the 4.5:1
+   body bar. */
+.mani-t .kin-w:nth-last-child(-n + 3) .kin-i {
+  color: var(--terra);
+}
+
+/* 10. FIGURES — removed.
+
+   Four counters reading "Every layer of a home / 4", "The only destination for
+   / 100 km", "All of it under / 1 roof", "More than / 240 materials". Cut at
+   the client's request, and they were right: three of the four were restating
+   things the page already says better in prose, the row read as a dashboard
+   bolted onto an essay, and the fourth ("240+") was a number I invented as
+   placeholder and flagged as such — a fabricated inventory figure is exactly
+   the kind of claim a competitor checks. The `figures` export and the Tally
+   component are now unused; `figures` is left in data.ts in case the real
+   numbers ever arrive. */
+
+/* ------------------------------------------------------------ 11. CHAPTERS
+   Clusters, not columns.
+
+   Read off the client's reference recording. It never puts one picture beside
+   one column of text. It scatters two or three frames at different sizes, lets
+   them bleed off opposite edges at different heights, and drops the statement
+   into the negative space between them, lapping their edges. One picture plus
+   one text column is a layout; three pictures at three scales is a
+   composition, and that is the whole difference in pull.
+
+   The sticky pin that used to hold a single picture still is gone with it, and
+   necessarily: pinning made sense when there was exactly one frame to hold,
+   and it cannot survive three that are meant to drift past each other. What
+   replaces it is parallax at three rates — 7 / 16 / 26 — which is what makes
+   the cluster read as depth rather than as a pile. */
+
+.ch {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(1rem, 2.4vw, 2.25rem);
+  padding: clamp(4rem, 12svh, 10rem) var(--gut);
+}
+
+.ch figure {
+  margin: 0;
+  overflow: hidden;
+  background: var(--void-2);
+}
+.ch-in {
+  height: 116%;
+  margin-top: -8%;
+  will-change: transform;
+}
+.ch figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.8) contrast(1.05) brightness(0.88);
+}
+
+/* Held until the lead frame has arrived. */
+.ch:not([data-arrived]) .ch-k,
+.ch:not([data-arrived]) .ch-b {
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+}
+.ch[data-arrived] .ch-k,
+.ch[data-arrived] .ch-b {
+  transition:
+    opacity 700ms var(--ease),
+    transform 900ms var(--ease);
+}
+.ch[data-arrived] .ch-k {
+  transition-delay: var(--lag);
+}
+.ch[data-arrived] .ch-b {
+  transition-delay: calc(var(--lag) + 240ms);
+}
+
+.ch-copy {
+  position: relative;
+  z-index: 2;
+}
+.ch-k {
+  display: flex;
+  align-items: baseline;
+  gap: 0.85rem;
+  font-family: var(--f-accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--cream-dim);
+  margin-bottom: 1rem;
+}
+.ch-k span {
+  color: var(--brass-2);
+}
+.ch-q {
+  font-family: var(--f-body);
+  font-weight: 300;
+  font-size: clamp(1.8rem, 5vw, 4.4rem);
+  line-height: 0.96;
+  letter-spacing: 0.004em;
+  text-transform: uppercase;
+  color: var(--cream);
+  max-width: 15ch;
+  margin: 0;
+}
+.ch-q .kin-w:last-child .kin-i {
+  color: var(--brass-2);
+}
+/* The chapter body was 13.6px — a caption size, sitting under a 70px
+   statement. That six-to-one gap is right for a micro-label and wrong for the
+   only prose in the section: it read as a footnote to the picture rather than
+   as the thing worth reading.
+
+   Now ~21.6px at the top of the clamp, a 60% lift, on 1.5 leading with the
+   tracking opened very slightly — light-set type at this size closes up
+   otherwise. The measure comes down from 32ch to 30ch to keep the line length
+   comfortable now the type is bigger.
+
+   It also fixes something incidental: the Sweep word-lighting was happening at
+   13.6px, where a per-word opacity gradient is nearly invisible. At this size
+   you can actually see the reading light travel through the sentence, which is
+   the whole point of that effect. */
+.ch-b {
+  font-family: var(--f-body);
+  font-size: clamp(1rem, 1.45vw, 1.35rem);
+  line-height: 1.5;
+  letter-spacing: 0.004em;
+  color: var(--cream-dim);
+  max-width: 30ch;
+  margin: 0;
+}
+/* Both can lap a picture by design, so they carry a wide, very soft shadow.
+   Invisible on the dark ground; the difference between legible and not over
+   a lit piece of timber. */
+.ch-q,
+.ch-b {
+  text-shadow: 0 1px 28px rgba(11, 4, 1, 0.92), 0 1px 4px rgba(11, 4, 1, 0.6);
+}
+
+/* Below the breakpoint the cluster collapses to a single column in reading
+   order. Three overlapping frames need horizontal room to be a composition;
+   on a phone they would just be three pictures on top of each other. */
+.ch figure {
+  height: clamp(11rem, 34svh, 20rem);
+}
+.ch-a {
+  height: clamp(14rem, 44svh, 26rem);
+}
+
+@media (min-width: 900px) {
+  .ch {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+    row-gap: 0;
+  }
+  .ch figure,
+  .ch-a {
+    height: auto;
+  }
+
+  /* Four arrangements. None repeats, none is symmetrical, and each one bleeds
+     a different frame off a different edge. */
+
+  /* --- 01 · lead wide top-left, tall right, third low-centre --- */
+  .ch[data-n="0"] .ch-a {
+    grid-column: 1 / span 6;
+    grid-row: 1;
+    margin-left: calc(var(--gut) * -1);
+    height: 46svh;
+  }
+  .ch[data-n="0"] .ch-b2 {
+    grid-column: 8 / span 5;
+    grid-row: 1 / span 2;
+    margin-top: 18svh;
+    margin-right: calc(var(--gut) * -1);
+    height: 62svh;
+  }
+  .ch[data-n="0"] .ch-c {
+    grid-column: 2 / span 5;
+    grid-row: 2;
+    margin-top: 6svh;
+    height: 34svh;
+  }
+  .ch[data-n="0"] .ch-copy {
+    grid-column: 1 / span 7;
+    grid-row: 3;
+    margin-top: -9svh;
+  }
+  .ch[data-n="0"] .ch-b {
+    grid-column: 8 / span 5;
+    grid-row: 3;
+    margin-top: 3svh;
+  }
+
+  /* --- 02 · mirrored, lead tall on the right --- */
+  .ch[data-n="1"] .ch-a {
+    grid-column: 7 / span 6;
+    grid-row: 1;
+    margin-right: calc(var(--gut) * -1);
+    height: 52svh;
+  }
+  .ch[data-n="1"] .ch-b2 {
+    grid-column: 1 / span 4;
+    grid-row: 1 / span 2;
+    margin-top: 22svh;
+    margin-left: calc(var(--gut) * -1);
+    height: 58svh;
+  }
+  .ch[data-n="1"] .ch-c {
+    grid-column: 6 / span 5;
+    grid-row: 2;
+    margin-top: 4svh;
+    height: 36svh;
+  }
+  .ch[data-n="1"] .ch-copy {
+    grid-column: 6 / span 7;
+    grid-row: 3;
+    margin-top: -8svh;
+  }
+  .ch[data-n="1"] .ch-b {
+    grid-column: 1 / span 5;
+    grid-row: 3;
+    margin-top: 4svh;
+  }
+
+  /* --- 03 · three narrow frames, statement across the foot --- */
+  .ch[data-n="2"] .ch-a {
+    grid-column: 1 / span 4;
+    grid-row: 1;
+    margin-left: calc(var(--gut) * -1);
+    height: 60svh;
+  }
+  .ch[data-n="2"] .ch-b2 {
+    grid-column: 5 / span 4;
+    grid-row: 1;
+    margin-top: 14svh;
+    height: 42svh;
+  }
+  .ch[data-n="2"] .ch-c {
+    grid-column: 10 / span 3;
+    grid-row: 1;
+    margin-top: 30svh;
+    margin-right: calc(var(--gut) * -1);
+    height: 38svh;
+  }
+  .ch[data-n="2"] .ch-copy {
+    grid-column: 1 / span 8;
+    grid-row: 2;
+    margin-top: -6svh;
+  }
+  .ch[data-n="2"] .ch-b {
+    grid-column: 9 / span 4;
+    grid-row: 2;
+    margin-top: 6svh;
+  }
+
+  /* --- 04 · wide lead low, statement high in the gap --- */
+  .ch[data-n="3"] .ch-a {
+    grid-column: 4 / span 9;
+    grid-row: 2;
+    margin-right: calc(var(--gut) * -1);
+    height: 56svh;
+  }
+  .ch[data-n="3"] .ch-b2 {
+    grid-column: 1 / span 4;
+    grid-row: 1;
+    margin-left: calc(var(--gut) * -1);
+    height: 40svh;
+  }
+  .ch[data-n="3"] .ch-c {
+    grid-column: 1 / span 3;
+    grid-row: 2;
+    margin-top: 20svh;
+    height: 30svh;
+  }
+  .ch[data-n="3"] .ch-copy {
+    grid-column: 6 / span 7;
+    grid-row: 1;
+    align-self: end;
+    margin-bottom: -4svh;
+  }
+  .ch[data-n="3"] .ch-b {
+    grid-column: 1 / span 5;
+    grid-row: 3;
+    margin-top: 4svh;
+  }
+}
+
+/* ------------------------------------------------------------- 12. MARQUEE */
+
+.marq {
+  overflow: hidden;
+  border-block: 1px solid var(--hair-soft);
+  padding: clamp(0.9rem, 2vw, 1.4rem) 0;
+  background: rgba(12, 7, 5, 0.5);
+  backdrop-filter: blur(4px);
+}
+.marq-in {
+  display: flex;
+  width: max-content;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .marq-in {
+    animation: slide 38s linear infinite;
+  }
+}
+@keyframes slide {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+.marq-set {
+  display: flex;
+  flex: none;
+}
+.marq-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.5rem;
+  padding-right: 2.5rem;
+  font-family: var(--f-display);
+  font-size: clamp(1.4rem, 3.4vw, 2.75rem);
+  letter-spacing: -0.02em;
+  color: var(--cream-dim);
+  white-space: nowrap;
+}
+.marq-item i {
+  font-style: normal;
+  font-size: 0.4em;
+  color: var(--terra);
+}
+
+/* ---------------------------------------------------------------- 13. RAIL */
+
+.railwrap {
+  padding: var(--stack) 0;
+}
+.railhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 0 var(--gut) clamp(2rem, 5vh, 3.5rem);
+}
+.railhead h2 {
+  font-size: clamp(1.7rem, 4.5vw, 3.5rem);
+  max-width: 16ch;
+}
+.railhint {
+  font-family: var(--f-accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--brass-2);
+  white-space: nowrap;
+}
+.rail {
+  overflow: hidden;
+  padding-inline: var(--gut);
+  touch-action: pan-y;
+  /* Without this, dragging the rail runs a text selection across the captions
+     and paints half the row in the ::selection colour. Any drag surface needs
+     it, and the images need their own native drag disabled on top. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.rail img {
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+.rail[data-drag="1"] {
+  cursor: grabbing;
+}
+.rail-track {
+  display: flex;
+  gap: clamp(0.75rem, 1.6vw, 1.5rem);
+  width: max-content;
+  will-change: transform;
+}
+.card {
+  margin: 0;
+  flex: none;
+  width: clamp(15rem, 26vw, 24rem);
+}
+.card-img {
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: var(--void-2);
+}
+.card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.78) brightness(0.86);
+  transition: transform 1200ms var(--out), filter 800ms var(--out);
+}
+.card:hover .card-img img {
+  transform: scale(1.05);
+  filter: saturate(1) brightness(1);
+}
+.card figcaption {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  padding-top: 0.9rem;
+}
+.card-n {
+  font-family: var(--f-accent);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: var(--brass-2);
+}
+.card-t {
+  font-family: var(--f-display);
+  font-size: 1.2rem;
+}
+
+/* ============================================================== 13b. THE WALL
+   "Everything, under one roof."
+
+   Modelled on the reference's "featured in the world's leading voices" wall,
+   which is worth describing precisely because almost none of it is a carousel:
+   the covers are BIG, each one is rotated a degree or three off square, they
+   overlap each other and the headline, they sit at different heights, and the
+   whole thing is on a light ground while the rest of that site is black.
+
+   That last part is the reason this section exists in this form. The Brand
+   Guidelines say to use cream and warm neutrals as the foundation; this page
+   has been dark throughout, and I have flagged that contradiction from the
+   start. One full-height cream surface in the middle of the descent settles it
+   honestly — the page goes to the brand's own ground for its one moment of
+   daylight, and coming back out into the dark afterwards makes both read
+   stronger than either would alone.
+
+   It also finally gives `--seal` somewhere to live. It is a brand colour that
+   the guidelines allow on light surfaces only, so on a black page it had
+   nowhere to go: 2.46:1 on the night ground, 6.32:1 here. */
+
+.wallwrap {
+  min-height: 320svh;
+}
+.wallwrap .strip-pin {
+  background: var(--cream);
+  color: var(--void);
+  overflow: hidden;
+  /* Cards hang off the BOTTOM of the pin so the headline has the top third to
+     itself. Centred, the wall covered the type completely — which defeats the
+     idea: the type is supposed to be partly obscured, not absent. */
+  align-content: end;
+  padding-bottom: clamp(1.5rem, 6svh, 4.5rem);
+}
+@media (max-width: 899px) {
+  .wallwrap {
+    min-height: 230svh;
+  }
+}
+
+/* The headline sits BEHIND the wall and is partly covered by it. Type that is
+   never obscured is a caption; type the images pass over is a backdrop, and
+   the difference is most of why the reference's version has depth. */
+.wall-head {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  align-content: start;
+  padding: clamp(3rem, 12svh, 8rem) var(--gut) 0;
+  pointer-events: none;
+}
+.wall-over {
+  font-family: var(--f-accent);
+  font-size: 0.66rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--seal);
+  margin-bottom: clamp(0.75rem, 2vh, 1.5rem);
+}
+/* Two lines, not three. At three the wall buried the bottom two completely and
+   the result read as a rendering fault rather than as depth — the point of
+   putting type behind the pictures is that you can still see enough of it to
+   finish the sentence yourself. Two lines puts the first clear above the cards
+   and laps the second, which is what the reference actually does. */
+.wall-h {
+  font-family: var(--f-body);
+  font-weight: 300;
+  font-size: clamp(2rem, 7vw, 6.4rem);
+  line-height: 0.96;
+  letter-spacing: 0.004em;
+  text-transform: uppercase;
+  max-width: 13ch;
+  margin: 0;
+}
+.wall-h em {
+  font-style: normal;
+  color: var(--seal);
+}
+
+.wallwrap .strip {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+  padding-block: clamp(2rem, 7vh, 5rem);
+}
+.wallwrap .strip-track {
+  align-items: center;
+  gap: clamp(1rem, 3.4vw, 3.5rem);
+}
+
+/* Every card a different size and a different angle. The rotations are small —
+   nothing here is past four degrees — because the effect is meant to read as
+   things laid down by hand, not as a scrapbook. */
+/* Every card a different size and a different angle. The rotations are small —
+   nothing here is past four degrees — because this should read as things laid
+   down by hand, not as a scrapbook.
+
+   Sized by HEIGHT rather than width. Width-driven sizing plus an aspect ratio
+   is how the first cut overflowed: a 31vw card at 3/4 is 600px tall before the
+   focus scale multiplies it, which does not fit in a viewport that also has to
+   hold a headline. Fixing the height and letting the aspect ratio decide the
+   width means the tallest possible card — biggest size, at full focus, at its
+   furthest vertical offset — still lands inside the pin. */
+.plate-card {
+  margin: 0;
+  flex: none;
+  position: relative;
+  transform: rotate(var(--rot, 0deg)) translateY(var(--dy, 0px))
+    scale(calc(1 + var(--f, 0) * 0.16));
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.plate-card:nth-child(6n + 1) {
+  --rot: -2.6deg;
+  --dy: 1.5vh;
+  --h: clamp(11rem, 46svh, 27rem);
+}
+.plate-card:nth-child(6n + 2) {
+  --rot: 1.8deg;
+  --dy: -4vh;
+  --h: clamp(9rem, 38svh, 22rem);
+}
+.plate-card:nth-child(6n + 3) {
+  --rot: -1.1deg;
+  --dy: 5vh;
+  --h: clamp(8rem, 32svh, 19rem);
+}
+.plate-card:nth-child(6n + 4) {
+  --rot: 3.2deg;
+  --dy: -1.5vh;
+  --h: clamp(12rem, 50svh, 30rem);
+}
+.plate-card:nth-child(6n + 5) {
+  --rot: -3.4deg;
+  --dy: 3.5vh;
+  --h: clamp(8.5rem, 35svh, 21rem);
+}
+.plate-card:nth-child(6n) {
+  --rot: 2.2deg;
+  --dy: -5vh;
+  --h: clamp(10rem, 42svh, 25rem);
+}
+
+.plate-img {
+  height: var(--h, 40svh);
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: var(--void-2);
+  /* A real drop shadow, which is legal here and nowhere else on this site: on
+     the night ground a shadow is invisible, so the cards would have been
+     floating on nothing. On cream it is what lifts them off the surface. */
+  box-shadow:
+    0 1px 2px rgba(26, 10, 4, 0.16),
+    0 12px 30px rgba(26, 10, 4, 0.14),
+    0 34px 70px rgba(26, 10, 4, 0.12);
+}
+.plate-card:nth-child(4n + 2) .plate-img {
+  aspect-ratio: 4 / 5;
+}
+.plate-card:nth-child(4n + 3) .plate-img {
+  aspect-ratio: 1 / 1;
+}
+.plate-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: saturate(calc(0.8 + var(--f, 0) * 0.25))
+    brightness(calc(0.9 + var(--f, 0) * 0.14));
+}
+.plate-card figcaption {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  padding-top: 0.9rem;
+  opacity: calc(0.4 + var(--f, 0) * 0.6);
+}
+.plate-n {
+  font-family: var(--f-accent);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: var(--seal);
+}
+.plate-t {
+  font-family: var(--f-display);
+  font-size: clamp(0.95rem, 1.4vw, 1.25rem);
+  color: var(--void);
+}
+
+/* -------------------------------------------------------------- 14. LAYERS
+   A quadriptych. Four tall panels standing side by side, each carrying its own
+   picture, the number in the corner and the text on a graded floor.
+
+   What was here before was the worst thing on the page: four headings and four
+   sentences floating directly on the moving backdrop, half a screen of dead
+   air between each, and body copy that measured as unreadable wherever the
+   plate behind it happened to be lit. Text on a photograph needs its own
+   ground; these panels bring one.
+
+   Nothing else on this site is composed as a row of equals, which is the other
+   reason for it — the four layers ARE a set of four, and every other section
+   is deliberately asymmetric, so this is the one place where symmetry says
+   something true. */
+
+.lays {
+  padding: var(--stack) var(--gut);
+}
+.lays-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+  padding-bottom: clamp(1.5rem, 4vh, 2.75rem);
+}
+.lays-h {
+  font-family: var(--f-body);
+  font-weight: 300;
+  font-size: clamp(1.6rem, 4vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: 0.004em;
+  text-transform: uppercase;
+  color: var(--cream);
+  margin: 0;
+}
+.lays-hint {
+  font-family: var(--f-accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--brass-2);
+}
+
+.lays-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(0.75rem, 1.4vw, 1.25rem);
+}
+@media (min-width: 720px) {
+  .lays-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1080px) {
+  .lays-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.lay {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  display: flex;
+  align-items: flex-end;
+  isolation: isolate;
+}
+@media (min-width: 1080px) {
+  .lay {
+    aspect-ratio: 5 / 8;
+  }
+}
+.lay-img {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+}
+.lay-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.78) brightness(0.66);
+  transform: scale(1.02);
+  transition:
+    transform 1200ms var(--ease),
+    filter 700ms var(--ease);
+}
+/* The floor the text stands on. Without it the body copy sits directly on a
+   lit photograph and disappears — measured, not guessed. */
+.lay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    rgba(11, 4, 1, 0.28) 0%,
+    rgba(11, 4, 1, 0.1) 34%,
+    rgba(11, 4, 1, 0.82) 74%,
+    rgba(11, 4, 1, 0.96) 100%
+  );
+  transition: opacity 700ms var(--ease);
+}
+.lay:hover .lay-img img {
+  transform: scale(1.07);
+  filter: saturate(0.92) brightness(0.82);
+}
+
+.lay-body {
+  position: relative;
+  padding: clamp(1.1rem, 2vw, 1.6rem);
+  width: 100%;
+}
+.lay-n {
+  display: block;
+  font-family: var(--f-accent);
+  font-size: 0.6rem;
+  letter-spacing: 0.26em;
+  color: var(--brass-2);
+  margin-bottom: 0.6rem;
+}
+.lay-t {
+  font-family: var(--f-body);
+  font-weight: 300;
+  font-size: clamp(1.35rem, 2.2vw, 1.9rem);
+  line-height: 1;
+  letter-spacing: 0.004em;
+  text-transform: uppercase;
+  color: var(--cream);
+  margin: 0 0 0.6rem;
+}
+.lay-b {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--cream-dim);
+  margin: 0;
+  /* The panel is short, so the body is held back until you point at it. On a
+     four-across row this keeps the set reading as four titles rather than as
+     four paragraphs competing for the same glance. */
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-height 620ms var(--ease),
+    opacity 420ms var(--ease);
+}
+.lay:hover .lay-b,
+.lay:focus-within .lay-b {
+  max-height: 9rem;
+  opacity: 1;
+}
+/* Touch has no hover, so there the copy is simply always shown. */
+@media (pointer: coarse) {
+  .lay-b {
+    max-height: none;
+    opacity: 1;
+  }
+}
+
+/* Scroll-linked arrival, staggered across the row. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .lay {
+      animation: lay-in linear both;
+      animation-timeline: view();
+      animation-range: entry 2% entry calc(42% + var(--i, 0) * 7%);
+    }
+  }
+}
+@keyframes lay-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 46px, 0);
+    clip-path: inset(0 0 22% 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* ------------------------------------------------------------- 15. CLOSING */
+
+/* The closing statement landed on the brightest part of the salon plate and
+   was measurably hard to read — cream on a lit curtain. A soft elliptical
+   pool of ground under it fixes that without introducing a panel edge: it is
+   invisible where the plate is already dark and does the work where it is not. */
+.close {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(2.5rem, 7vh, 5rem);
+  padding: var(--stack) var(--gut);
+  text-align: center;
+}
+.close::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(
+    ellipse 62% 46% at 50% 46%,
+    rgba(11, 4, 1, 0.9) 0%,
+    rgba(11, 4, 1, 0.72) 45%,
+    transparent 78%
+  );
+  pointer-events: none;
+}
+.close-q {
+  font-family: var(--f-display);
+  font-size: clamp(1.6rem, 4.6vw, 4.1rem);
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  max-width: 17ch;
+}
+.big-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: clamp(1rem, 2vw, 1.4rem) clamp(1.8rem, 3.5vw, 2.8rem);
+  border: 1px solid var(--brass-1);
+  border-radius: 999px;
+  font-family: var(--f-accent);
+  font-size: 0.68rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  overflow: hidden;
+  position: relative;
+  transition: color 500ms var(--out), border-color 500ms var(--out);
+}
+/* Fill wipes up from the floor on hover, and the arrow leads. */
+.big-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--brass-2);
+  transform: translate3d(0, 101%, 0);
+  transition: transform 620ms var(--out);
+}
+.big-cta:hover {
+  color: var(--void);
+  border-color: var(--brass-2);
+}
+.big-cta:hover::before {
+  transform: none;
+}
+.big-cta svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  transition: transform 620ms var(--ease);
+}
+.big-cta:hover svg {
+  transform: translateX(5px);
+}
+
+/* -------------------------------------------------------------- 16. FOOTER */
+
+.foot {
+  padding: clamp(3rem, 8vh, 6rem) var(--gut) clamp(2rem, 5vh, 3rem);
+  border-top: 1px solid var(--hair-soft);
+  background: linear-gradient(180deg, transparent, rgba(12, 7, 5, 0.9));
+}
+.foot-word {
+  display: block;
+  font-family: var(--f-wordmark);
+  /* Sized to fill the measure without spilling. 15.5vw cut the final H off on
+     a 1550px screen, which reads as a bug rather than a crop. */
+  font-size: clamp(1.9rem, 10.4vw, 12rem);
+  line-height: 0.82;
+  letter-spacing: 0.01em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(237, 228, 214, 0.28);
+  text-align: center;
+}
+.foot-row {
+  margin-top: clamp(2rem, 5vh, 3.5rem);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem 2rem;
+  font-family: var(--f-accent);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cream-faint);
+}
+
+/* ------------------------------------------------------- 17. REDUCED MOTION */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  .sw-w {
+    opacity: 1 !important;
+  }
+  .kin-i,
+  .unmask img,
+  .unmask {
+    transform: none !important;
+    opacity: 1 !important;
+    clip-path: none !important;
+  }
+}
+
+/* ================================================ 18. THE MATERIALS BAND
+   Horizontal motion, passive: the strip travels sideways as you scroll down
+   through the band. Nothing is pinned and the page scroll is untouched — see
+   Strip.tsx for why the mapping is damped rather than direct. */
+
+.stripwrap {
+  /* Tall on purpose. The horizontal travel is mapped onto the scroll left over
+     after the pin engages, so this height IS the runway — at one viewport there
+     would be none and the whole strip would cross in a flick. */
+  min-height: 300svh;
+  position: relative;
+}
+@media (max-width: 899px) {
+  .stripwrap {
+    min-height: 210svh;
+  }
+}
+/* Nothing happens until the band is centred. The pin engages at the exact
+   moment the wrapper's top edge meets the top of the viewport, which is also
+   the moment the strip is centred on screen — so "arrived" and "progress zero"
+   are the same instant, and the strip is never already half spent by the time
+   you can see it. */
+.strip-pin {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  display: grid;
+  /* minmax(0, 1fr), NOT the implicit `auto`.
+     An auto grid column sizes to its items' max-content, and the item here
+     contains a `width: max-content` track — so the column blew out to the full
+     3114px of the track, the band stretched to match, and
+     `scrollWidth − clientWidth` came to exactly zero. The band had nowhere to
+     travel and sat dead still.
+     The materials strip only escaped this because its `overflow: hidden` makes
+     it a scroll container, and a scroll container's intrinsic contribution
+     ignores its overflowing content. The wall needs `overflow: visible` so the
+     card shadows and vertical offsets survive, so it cannot rely on that —
+     hence pinning the column explicitly, which is the more honest fix for both. */
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  overflow: hidden;
+}
+.strip-label {
+  padding: 0 var(--gut) clamp(1.5rem, 4vh, 2.5rem);
+  font-family: var(--f-accent);
+  font-size: 0.66rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--brass-2);
+  /* Fades up as the band settles into place, so the label is part of the
+     arrival rather than a caption that was always there. */
+  opacity: calc(0.25 + var(--sp, 0) * 2.2);
+}
+.strip {
+  overflow: hidden;
+  padding-block: clamp(1rem, 4vh, 2.5rem);
+}
+.strip-track {
+  display: flex;
+  gap: clamp(0.75rem, 2vw, 1.75rem);
+  width: max-content;
+  padding-inline: var(--gut);
+  will-change: transform;
+}
+/* The `.slab` rules that lived here are gone with the materials band they
+   styled. The band is now a specimen index — see section 18b below. `--f` is
+   still written per frame by Strip.tsx and still drives the wall's cards. */
+
+/* Reduced motion turns the band into an ordinary scroller rather than
+   freezing it — the content is still reachable, just under your own thumb. */
+@media (prefers-reduced-motion: reduce) {
+  .stripwrap {
+    min-height: 0;
+  }
+  .strip-pin {
+    position: static;
+    height: auto;
+    padding-block: var(--stack);
+  }
+  .strip-label {
+    opacity: 1;
+  }
+  .strip {
+    overflow-x: auto;
+  }
+  .strip-track {
+    transform: none !important;
+  }
+}
+
+/* The reference's indent, applied only where there is width to spare. */
+@media (min-width: 760px) {
+  /* Deeper than it was: the nav now sits on the hero's centre line, so the
+     headline has to clear the wordmark on the left rather than butting into it. */
+  .hero-h,
+  .hero-scroll {
+    margin-left: clamp(2rem, 23vw, 22rem);
+  }
+}
+
+/* ============================================================ 18b. SPECIMEN
+   The materials index that replaced the sideways band.
+
+   The band was seven photographs going past. You could not learn one fact from
+   it — not what a material was, where it came from, or what it was for, which
+   is the only question somebody standing in a showroom is actually asking.
+   This is a readable index with the pictures kept as a preview that follows
+   the cursor, so nothing is lost and a great deal is gained.
+
+   It also does something the page badly needed: it is the one place with a
+   settled, near-solid ground. Everything else floats over the moving backdrop,
+   and floating dense information over a photograph is how the four-layer
+   section ended up illegible. Data gets a surface to sit on. */
+
+/* A LIGHT surface, in both grounds.
+   Dense tabular information is the one thing on this page that genuinely reads
+   better on paper than on night — it is the argument the whole second site is
+   built on, and it holds here too. It also gives the descent a second beat of
+   daylight, so the wall further down is no longer the only one, and it is
+   where SEAL BROWN becomes legal: the guidelines permit it on light surfaces
+   only, and it measures 6.31:1 here against 2.46:1 on the night ground. */
+.specwrap {
+  position: relative;
+  padding: var(--stack) var(--gut);
+  background: var(--cream);
+  color: var(--void);
+}
+.specwrap .spec-h {
+  color: var(--void);
+}
+.specwrap .spec-hint {
+  color: var(--seal);
+}
+.specwrap .spec-row {
+  border-top-color: rgba(26, 10, 4, 0.16);
+  color: var(--void);
+}
+.specwrap .spec-row:last-child {
+  border-bottom-color: rgba(26, 10, 4, 0.16);
+}
+.specwrap .spec-row:hover,
+.specwrap .spec-row:focus-visible {
+  color: var(--seal);
+}
+/* #6f6152 rather than something lighter: measured 4.83:1 on this ground, which
+   clears AA at any size. The first value I reached for on cream in the paper
+   edition was 3.34:1 and failed — a warm grey on warm paper looks fine long
+   after it has stopped being readable. */
+.specwrap .spec-n,
+.specwrap .spec-meta {
+  color: #6f6152;
+}
+.specwrap .spec-row:hover .spec-n,
+.specwrap .spec-row:hover .spec-meta {
+  color: var(--seal);
+}
+.specwrap .spec-go {
+  color: var(--seal);
+}
+/* On the night ground the preview was separated by a brass hairline, because a
+   shadow on black is invisible. On paper it is the other way round. */
+.specwrap ~ .spec-peek,
+.spec-peek {
+  outline: none;
+  box-shadow: 0 26px 70px rgba(26, 10, 4, 0.28);
+  background: var(--cream-dim);
+}
+.spechead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2rem;
+  flex-wrap: wrap;
+  padding-bottom: clamp(1.5rem, 4vh, 2.5rem);
+}
+.spec-h {
+  font-family: var(--f-body);
+  font-weight: 300;
+  font-size: clamp(1.6rem, 4vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: 0.004em;
+  text-transform: uppercase;
+  color: var(--cream);
+  margin: 0;
+}
+.spec-hint {
+  font-family: var(--f-accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--brass-2);
+}
+
+.spec-row {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(0.75rem, 2vw, 2rem);
+  align-items: center;
+  padding-block: clamp(1rem, 2.2vh, 1.4rem);
+  border-top: 1px solid var(--hair);
+  color: var(--cream);
+  transition: color 260ms var(--ease);
+}
+@media (min-width: 900px) {
+  /* Six columns for six children. Five is the count of the visible ones and
+     leaves the sixth to wrap onto an implicit row, which grows every hovered
+     row and shoves the table down — same bug, same fix, as the wall. */
+  .spec-row {
+    grid-template-columns:
+      3.5rem minmax(0, 1.4fr) minmax(0, 1fr)
+      minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+}
+.spec-row:last-child {
+  border-bottom: 1px solid var(--hair);
+}
+.spec-row:hover,
+.spec-row:focus-visible {
+  color: var(--brass-2);
+}
+.spec-n {
+  font-family: var(--f-accent);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  color: var(--cream-faint);
+  font-variant-numeric: tabular-nums;
+  transition: color 260ms var(--ease);
+}
+.spec-row:hover .spec-n {
+  color: var(--brass-2);
+}
+.spec-name {
+  font-family: var(--f-body);
+  font-weight: 300;
+  font-size: clamp(1.1rem, 2.1vw, 1.7rem);
+  letter-spacing: 0.004em;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+.spec-meta {
+  font-size: 0.82rem;
+  color: var(--cream-dim);
+  transition: color 260ms var(--ease);
+}
+.spec-row:hover .spec-meta {
+  color: inherit;
+}
+.spec-hide {
+  display: none;
+}
+@media (min-width: 900px) {
+  .spec-hide {
+    display: block;
+  }
+}
+.spec-go {
+  display: none;
+  font-family: var(--f-accent);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--brass-2);
+  opacity: 0;
+  transform: translate3d(-6px, 0, 0);
+  transition:
+    opacity 240ms var(--ease),
+    transform 380ms var(--ease);
+}
+@media (min-width: 900px) {
+  .spec-go {
+    display: block;
+  }
+}
+.spec-row:hover .spec-go,
+.spec-row:focus-visible .spec-go {
+  opacity: 1;
+  transform: none;
+}
+
+/* The follower. On cream it needed a shadow to lift it off the page; on the
+   night ground a shadow is invisible, so what separates it here is a brass
+   hairline and the fact that it is the brightest thing on screen. */
+.spec-peek {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: clamp(11rem, 15vw, 15rem);
+  aspect-ratio: 3 / 4;
+  z-index: 45;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--void-2);
+  outline: 1px solid rgba(217, 180, 120, 0.45);
+  outline-offset: -1px;
+  opacity: 0;
+  transition: opacity 240ms var(--ease);
+  will-change: transform;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+}
+.spec-peek[data-on] {
+  opacity: 1;
+}
+.spec-peek img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 380ms var(--ease);
+}
+.spec-peek img[data-on] {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .spec-peek {
+    display: none;
+  }
+}
+
+/* Rows arrive as you reach them, scroll-linked rather than triggered — the
+   same idiom as the rest of this site, and it costs no JavaScript at all. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .spec-row {
+      animation: spec-in linear both;
+      animation-timeline: view();
+      animation-range: entry 4% entry 44%;
+    }
+  }
+}
+@keyframes spec-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 19. INK MODE — removed.
+
+   A header switch that dropped the photographic backdrop for a flat near-black
+   ground. Cut at the client's request: "without image it not look good", and
+   they are right. The whole page is composed against that moving ground —
+   the chapter statements, the scrims, the grain, the way each section hands
+   over to the next. Strip it out and what is left is not a more austere
+   version of this page, it is this page with its subject missing.
+
+   The `.top-right` wrapper it introduced is kept below: the header still uses
+   it, and it is where anything else that joins the CTA will go. */
+
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 1.6vw, 1.5rem);
+}
+
+/* ============================================================== 20. FOUNDER
+   Read off the client's recording of the reference.
+
+   Four things carry it, and the order matters: a full-bleed monochrome
+   portrait held to one edge; a large thin statement that laps the portrait's
+   edge rather than sitting beside it; a narrow column of genuinely small copy;
+   and a signature. The scale gap between the statement and the body — roughly
+   six to one — is most of the effect. Set the copy any larger and the two
+   start arguing.
+
+   Monochrome for the same reason the reference is: it separates the one person
+   on the page from all the warm timber photography around him, without needing
+   a frame or a panel to do it. */
+
+.founder {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vh, 3rem);
+  padding: var(--stack) var(--gut);
+  align-items: end;
+}
+@media (min-width: 900px) {
+  .founder {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: clamp(1.5rem, 3vw, 3rem);
+    min-height: 100svh;
+  }
+}
+
+.founder-fig {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  background: var(--void-2);
+}
+@media (min-width: 900px) {
+  .founder-fig {
+    grid-column: 1 / span 7;
+    grid-row: 1;
+    /* Bleeds off the left edge. A portrait with a gutter on both sides is a
+       picture of a person; one that runs off the page is a presence. */
+    margin-left: calc(var(--gut) * -1);
+    aspect-ratio: auto;
+    height: min(82svh, 46rem);
+  }
+}
+.founder-fig img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 28%;
+  filter: grayscale(1) contrast(1.12) brightness(0.88);
+}
+/* The statement lands over the portrait's lower right, so the picture is
+   graded down there to keep the type off the busiest part of the image. */
+.founder-fig::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 34%,
+    rgba(11, 4, 1, 0.45) 62%,
+    rgba(11, 4, 1, 0.82) 100%
+  );
+}
+
+.founder-h {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  font-family: var(--f-body);
+  font-weight: 300;
+  font-size: clamp(2rem, 6.2vw, 5.4rem);
+  line-height: 0.94;
+  letter-spacing: 0.004em;
+  text-transform: uppercase;
+  color: var(--cream);
+  display: grid;
+}
+@media (min-width: 900px) {
+  .founder-h {
+    /* Starts inside the portrait and finishes past its edge — the lap is the
+       whole idea, so it is placed by column rather than nudged by a margin. */
+    grid-column: 4 / span 6;
+    grid-row: 1;
+    align-self: end;
+    margin-bottom: clamp(2rem, 6vh, 4.5rem);
+  }
+}
+.founder-h em {
+  font-style: normal;
+  color: var(--brass-2);
+}
+/* Each line wipes up out of its own box as the section arrives. */
+.founder-h span {
+  display: block;
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .founder-h span {
+      animation: fnd-line linear both;
+      animation-timeline: view();
+      animation-range: entry 6% entry calc(46% + var(--l, 0) * 8%);
+    }
+  }
+}
+@keyframes fnd-line {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 88%, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.founder-side {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 1.1rem;
+  align-content: end;
+}
+@media (min-width: 900px) {
+  .founder-side {
+    grid-column: 10 / span 3;
+    grid-row: 1;
+    padding-bottom: clamp(2rem, 6vh, 4.5rem);
+  }
+}
+.founder-b {
+  font-size: 0.82rem;
+  line-height: 1.62;
+  color: var(--cream-dim);
+  margin: 0;
+  max-width: 34ch;
+}
+
+/* The reference has a real handwritten signature here. We do not have one, so
+   this is the mark and the attribution instead — honest, and a scan drops
+   straight into the same slot. */
+.founder-sign {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.6rem 0 0;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--hair);
+}
+.founder-symbol {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+  color: var(--brass-2);
+}
+.founder-sign span {
+  display: grid;
+  font-family: var(--f-accent);
+  font-size: 0.58rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cream-faint);
+  line-height: 1.7;
+}
+.founder-sign b {
+  font-weight: 500;
+  color: var(--cream);
+}
+
+/* ------------------------------------------- 21. THE QUIET TYPE ANIMATION
+   The beats and the manifesto get a deliberately smaller motion than the rest
+   of the page.
+
+   Everywhere else Kinetic swings each word up on a real rotateX out of a 5px
+   blur, and at chapter scale that reads as weight. On these two screens the
+   type IS the screen — nothing else is on it — and the same treatment becomes
+   a lot of machinery happening to a lot of very large letters. The reference
+   does almost nothing here: the lines rise out of their own mask and stop.
+
+   So: no rotation, no blur, no fade. The mask does the hiding, which is why
+   opacity stays at 1 — a word that fades as well as rises is announcing the
+   effect rather than delivering the line. */
+
+.beat[data-kin="wait"] .kin-i,
+.mani-t[data-kin="wait"] .kin-i {
+  transform: translate3d(0, 104%, 0);
+  opacity: 1;
+  filter: none;
+}
+.beat[data-kin="in"] .kin-i,
+.mani-t[data-kin="in"] .kin-i {
+  transform: none;
+  opacity: 1;
+  filter: none;
+  transition: transform 880ms var(--ease);
+}
